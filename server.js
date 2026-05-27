@@ -237,9 +237,13 @@ app.get('/dashboard',(req,res)=>{
 // ── start server ───────────────────────────────────────────────────────
 let client=null;
 
-function askQuestion(query) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise(resolve => rl.question(query, ans => { rl.close(); resolve(ans); }));
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const askQuestion = (q) => new Promise((resolve) => rl.question(q, resolve));
+
+async function waitAndExit(code) {
+  console.log(chalk.yellow('\npress enter to exit...'));
+  await askQuestion('');
+  process.exit(code);
 }
 
 async function start(){
@@ -249,14 +253,18 @@ async function start(){
     token = await askQuestion(chalk.cyan('please enter your discord token: '));
     if(!token) {
       console.log(chalk.red('no token provided. exiting.'));
-      process.exit(1);
+      await waitAndExit(1);
     }
     process.env.DISCORD_TOKEN = token;
   }
   client=new Client();
   try{ await client.login(token); }
-  catch(e){ console.log(chalk.red('login failed:'),e.message); process.exit(1); }
+  catch(e){ console.log(chalk.red('login failed:'),e.message); await waitAndExit(1); }
   console.log(chalk.green(`logged in as ${client.user.tag}`));
+  
+  // Close readline after successful start so it doesn't block or interfere
+  rl.close();
+  
   app.listen(PORT,()=>{ console.log(chalk.blue(`server: http://localhost:${PORT}`)); console.log(chalk.blue(`dashboard: http://localhost:${PORT}/dashboard`)); });
   // graceful shutdown persistence
   function persist(){
