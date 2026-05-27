@@ -4,6 +4,7 @@ const chalk = require('chalk');
 const { Client } = require('discord.js-selfbot-v13');
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 
 const PORT = process.env.PORT || 3000;
 const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
@@ -235,14 +236,28 @@ app.get('/dashboard',(req,res)=>{
 
 // ── start server ───────────────────────────────────────────────────────
 let client=null;
+
+function askQuestion(query) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => rl.question(query, ans => { rl.close(); resolve(ans); }));
+}
+
 async function start(){
-  const token=process.env.DISCORD_TOKEN;
-  if(!token){ console.log(chalk.red('DISCORD_TOKEN env var required')); process.exit(1); }
+  let token=process.env.DISCORD_TOKEN;
+  if(!token){ 
+    console.log(chalk.yellow('DISCORD_TOKEN env var not found.'));
+    token = await askQuestion(chalk.cyan('please enter your discord token: '));
+    if(!token) {
+      console.log(chalk.red('no token provided. exiting.'));
+      process.exit(1);
+    }
+    process.env.DISCORD_TOKEN = token;
+  }
   client=new Client();
   try{ await client.login(token); }
-  catch(e){ console.log(chalk.red('Login failed:'),e.message); process.exit(1); }
-  console.log(chalk.green(`Logged in as ${client.user.tag}`));
-  app.listen(PORT,()=>{ console.log(chalk.blue(`Server: http://localhost:${PORT}`)); console.log(chalk.blue(`Dashboard: http://localhost:${PORT}/dashboard`)); });
+  catch(e){ console.log(chalk.red('login failed:'),e.message); process.exit(1); }
+  console.log(chalk.green(`logged in as ${client.user.tag}`));
+  app.listen(PORT,()=>{ console.log(chalk.blue(`server: http://localhost:${PORT}`)); console.log(chalk.blue(`dashboard: http://localhost:${PORT}/dashboard`)); });
   // graceful shutdown persistence
   function persist(){
     if(liveSession && liveSession.running){ console.log(chalk.yellow('Persisting incomplete session on exit')); const analytics=loadAnalytics(); analytics.push({timestamp:liveSession.timestamp,totalDeleted:liveSession.totalDeleted,totalFailed:liveSession.totalFailed,reports:liveSession.reports,stopped:true}); saveAnalytics(analytics); }
