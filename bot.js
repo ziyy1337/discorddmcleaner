@@ -55,6 +55,9 @@ async function main() {
       console.log(chalk.red("Geçerli kullanıcı ID'si bulunamadı."));
       process.exit(0);
     }
+    const amountInput = await prompt(chalk.cyan("Her kullanıcı için silinecek maksimum mesaj sayısını giriniz (tümünü silmek için boş bırakıp Enter'a basın): "));
+    const maxAmount = amountInput.trim() ? parseInt(amountInput.trim()) : null;
+
     let totalDeletedAll = 0;
     const promises = userIds.map(async (userId) => {
       let dmChannel = client.channels.cache.find(
@@ -68,8 +71,8 @@ async function main() {
           return;
         }
       }
-      console.log(chalk.yellow(`\n${userId} ile olan DM mesajlarınız silinmeye başlandı...`));
-      const deletedCount = await deleteAllMessages(dmChannel, client.user.id, userId);
+      console.log(chalk.yellow(`\n${userId} ile olan DM mesajlarınız silinmeye başlandı... (Maks: ${maxAmount || 'Limitsiz'})`));
+      const deletedCount = await deleteAllMessages(dmChannel, client.user.id, userId, maxAmount);
       totalDeletedAll += deletedCount;
     });
     await Promise.all(promises);
@@ -81,10 +84,11 @@ async function main() {
   }
 }
 
-async function deleteAllMessages(channel, clientUserId, userId) {
+async function deleteAllMessages(channel, clientUserId, userId, maxAmount) {
   let lastId = null;
   let totalDeleted = 0;
   while (true) {
+    if (maxAmount && totalDeleted >= maxAmount) break;
     const options = { limit: 100 };
     if (lastId) options.before = lastId;
     let messages;
@@ -97,16 +101,17 @@ async function deleteAllMessages(channel, clientUserId, userId) {
 
     const ownMessages = messages.filter(m => m.author.id === clientUserId);
     for (const msg of ownMessages.values()) {
+      if (maxAmount && totalDeleted >= maxAmount) break;
       try {
         await msg.delete();
         totalDeleted++;
         console.log(chalk.green(`[${userId}] Silinen mesaj sayısı: ${totalDeleted}`));
-        await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY));
+        // await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY)); // Commented out to rely on native D.js rate limit handling
       } catch {}
     }
 
     lastId = messages.last().id;
-    await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY));
+    // await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY)); // Commented out to rely on native D.js rate limit handling
   }
   return totalDeleted;
 }

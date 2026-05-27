@@ -27,12 +27,13 @@ function saveAnalytics(data){
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
 // delete only our own messages in a DM channel.
-async function deleteAllMessages(channel, onProgress){
+async function deleteAllMessages(channel, onProgress, maxAmount){
   let lastId = null;
   let deleted = 0;
   let failed = 0;
   while(true){
     if(stopRequested) break;
+    if(maxAmount && deleted >= maxAmount) break;
     const opts = { limit: 100 };
     if(lastId) opts.before = lastId;
     let msgs;
@@ -47,6 +48,7 @@ async function deleteAllMessages(channel, onProgress){
     
     for(const m of ownMessages){
       if(stopRequested) break;
+      if(maxAmount && deleted >= maxAmount) break;
       try{
         await m.delete();
         deleted++;
@@ -54,9 +56,9 @@ async function deleteAllMessages(channel, onProgress){
         failed++;
       }
       onProgress && onProgress(deleted, failed);
-      await sleep(RATE_LIMIT_DELAY);
+      // await sleep(RATE_LIMIT_DELAY); // Commented out to rely on native discord.js rate limit handling
     }
-    await sleep(200);
+    // await sleep(200); // Commented out to rely on native discord.js rate limit handling
   }
   return { deleted, failed };
 }
@@ -85,7 +87,9 @@ a{color:#4fc3f7}
 <p>Logged in as <strong>${process.env.DISCORD_TOKEN?'[connected]':''}</strong> | <a href="/dashboard">📊 Dashboard</a></p>
 <form id="form">
 <label>User IDs – one per line, commas or spaces:</label><br/><br/>
-<textarea id="ids" placeholder="123456789012345678\n987654321098765432"></textarea><br/>
+<textarea id="ids" placeholder="123456789012345678\n987654321098765432"></textarea><br/><br/>
+<label>Amount of messages to delete per user (leave empty for all):</label><br/>
+<input type="number" id="amount" placeholder="e.g. 50" min="1" style="width:100%;padding:10px;background:#1a1a1a;color:#eee;border:1px solid #333;border-radius:4px;margin-bottom:15px;"/><br/>
 <button type="button" id="startBtn">🗑 Delete DMs</button>
 <button type="button" id="stopBtn" disabled>✋ Stop</button>
 </form>
@@ -99,7 +103,7 @@ startBtn.addEventListener('click', async () => {
   startBtn.disabled=true; stopBtn.disabled=false;
   out.textContent='⏳ Running – watch live dashboard';
   try{
-    const r=await fetch('/clean',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:document.getElementById('ids').value})});
+    const r=await fetch('/clean',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:document.getElementById('ids').value, amount:document.getElementById('amount').value})});
     const d=await r.json();
     out.textContent='✅ Done!\\n'+JSON.stringify(d,null,2);
   }catch(err){ out.textContent='❌ '+err.message; }
@@ -117,11 +121,12 @@ stopBtn.addEventListener('click', async()=>{
 // start cleaning
 app.post('/clean', async (req,res)=>{
   const raw=req.body.ids||'';
+  const maxAmount = req.body.amount ? parseInt(req.body.amount) : null;
   const ids=raw.split(/[\s,\n]+/).map(s=>s.trim()).filter(id=>id.length>=15);
   if(ids.length===0) return res.json({error:'No valid IDs'});
   stopRequested=false;
   liveSession={timestamp:new Date().toISOString(),running:true,totalDeleted:0,totalFailed:0,reports:[]};
-  console.log(chalk.cyan(`Starting cleaning for ${ids.length} IDs concurrently`));
+  console.log(chalk.cyan(`Starting cleaning for ${ids.length} IDs concurrently (Max amount: ${maxAmount || 'unlimited'})`));
 
   const promises = ids.map(async (userId) => {
     const entry={userId,username:'',displayName:'',deleted:0,failed:0,status:'processing'};
@@ -140,7 +145,7 @@ app.post('/clean', async (req,res)=>{
     const {deleted,failed}=await deleteAllMessages(channel,(del,fail)=>{ 
       entry.deleted=del; 
       entry.failed=fail; 
-    });
+    }, maxAmount);
     entry.deleted=deleted; 
     entry.failed=failed; 
     entry.status=stopRequested ? 'stopped' : 'done';
