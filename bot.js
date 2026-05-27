@@ -25,7 +25,7 @@ async function main() {
   clearConsole();
   printHeader();
 
-  const token = await prompt(chalk.cyan("Lütfen hesabınızın tokenini giriniz: "));
+  const token = process.env.DISCORD_TOKEN || await prompt(chalk.cyan("Lütfen hesabınızın tokenini giriniz: "));
 
   const client = new Client();
 

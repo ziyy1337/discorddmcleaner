@@ -9,32 +9,27 @@ bu proje, discord hesabinizdaki dm mesajlarinizi toplu ve hizli bir sekilde silm
 - <span style="color:#ffb74d">canli izleme paneli</span>: silme islemini tarayicinizdan anlik olarak takip edebilirsiniz.
 - <span style="color:#e57373">gunluk temizleme</span>: paneldeki gecmis temizleme islemlerine ait loglari tek tusla silebilirsiniz.
 
-## kurulum
+## kurulum ve kullanim
 
 1. bagimli kutuphaneleri yukleyin:
    ```bash
    npm install
    ```
 
-2. discord tokeninizi cevre degiskeni (env) olarak ayarlayin:
+2. araci calistirmak icin discord tokeninizi baslatma komutuna ekleyin (sisteminize kalici olarak kaydetmeniz gerekmez):
+
+   ### web arayuzu (dashboard)
+
+   sunucuyu baslatmak icin:
    ```bash
-   export discord_token="tokeniniz"
+   discord_token="tokeniniz" node server.js
    ```
+   tarayicinizdan http://localhost:3000 adresine giderek dmleri temizleyebilirsiniz.
 
-## kullanim
+   ### komut satiri (cli)
 
-### web arayuzu (dashboard)
-
-sunucuyu baslatmak icin:
-```bash
-node server.js
-```
-tarayicinizdan http://localhost:3000 adresine giderek dmleri temizleyebilirsiniz.
-
-### komut satiri (cli)
-
-cli araci ile dogrudan konsoldan temizlik yapmak icin:
-```bash
-node bot.js
-```
-konsoldaki yonergeleri takip ederek tokeninizi ve kullanici idlerini girin.
+   cli aracini baslatmak icin:
+   ```bash
+   discord_token="tokeniniz" node bot.js
+   ```
+   konsoldaki yonergeleri takip ederek kullanici idlerini girin (tokeniniz otomatik olarak alinacaktir).
